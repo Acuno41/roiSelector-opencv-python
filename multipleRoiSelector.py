@@ -28,10 +28,10 @@ def parseArgs():
     return parser.parse_args()
 
 def printInfos():
-    print('[INFO] This is a ROI selector script for multiple images')
+    print('[INFO] This is a Multiple ROI selector script for multiple images')
     print('[INFO] Click the left button: select the point, right click: delete the last selected point')
-    print('[INFO] Press ‘S’ to determine the selection area and save it')
-    print('[INFO] Press ‘D’ to delete the selection area')
+    print('[INFO] Press ‘S’ to  save all ROIs')
+    print('[INFO] Press ‘D’ to delete last selected ROI')
     print('[INFO] Press ESC to quit')
     
 def getImagesFromFile(args):    
@@ -43,8 +43,8 @@ def plotSegmentedRois(imTemp, imMask, rois, colors):
         roiPoints = rs['Points']
         roiPoints = np.array(roiPoints, np.int32)
         roiPoints = roiPoints.reshape((-1, 1, 2))
-        imMask = cv2.fillPoly(imMask, [roiPoints], colors[qq])
-        imTemp = cv2.addWeighted(imTemp, 0.5, imMask, 0.5, 0)
+        imMask = cv2.fillPoly(imMask, [roiPoints], colors[qq%len(colors)])
+    imTemp = cv2.addWeighted(imTemp, 0.5, imMask, 0.5, 0)
     return imTemp, imMask
 
 def checkRoiClosed(pts,distTh=5):
@@ -77,13 +77,11 @@ def drawRoi(event, x, y,  flags, param):
         if checkRoiClosed(pts,distTh=5):
             rois.append({'Id': id, 'Points': pts})
             id += 1
-            print(rois, end='\n\n')
             pts = []
     
         for i in range(len(pts) - 1):
             cv2.circle(imTemp, pts[i], 1, (0, 0, 255), -1)
             cv2.line(imTemp, pt1=pts[i], pt2=pts[i + 1], color=(255, 0, 0), thickness=1)
-    
     
     cv2.imshow('image', imTemp)
 
@@ -100,6 +98,7 @@ def roiSelector(image):
     cv2.setMouseCallback('image', drawRoi)    
     
     while True:
+
         key = cv2.waitKey(1) & 0xFF   
 
         if key == 27:
@@ -112,6 +111,7 @@ def roiSelector(image):
             id -= 1
             
         if chr(key).lower() == 's':
+            rois.append({'Id': id, 'Points': pts})
             jsonName = image.split('.')[0] + '.json'
             with open(jsonName,'w') as jsonRoi:
                 json.dump(rois, jsonRoi)
