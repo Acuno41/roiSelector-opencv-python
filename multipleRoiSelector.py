@@ -38,8 +38,25 @@ def getImagesFromFile(args):
     images = glob.glob(args.imagePath + '/*.' + args.imageExt)
     return images
 
+def plotSegmentedRois(imTemp, imMask, rois, colors):
+    for qq, rs in enumerate(rois):
+        roiPoints = rs['Points']
+        roiPoints = np.array(roiPoints, np.int32)
+        roiPoints = roiPoints.reshape((-1, 1, 2))
+        imMask = cv2.fillPoly(imMask, [roiPoints], colors[qq])
+        imTemp = cv2.addWeighted(imTemp, 0.5, imMask, 0.5, 0)
+    return imTemp, imMask
+
+def checkRoiClosed(pts,distTh=5):
+    points = np.array(pts, np.int32)
+    dist = np.linalg.norm(points[0] - points[-1])
+    if dist < distTh:
+        return True
+    return False
+
 def drawRoi(event, x, y,  flags, param):
-    
+    global pts, id
+    colors = [(255,0,0),(0,255,0), (0,0,255), (204,78,1), (79,0,128), (255,255,85), (79,186,218), (229,152,230), (88,0,144)]
     imTemp = im.copy()
     imMask = im.copy()
 
@@ -47,28 +64,33 @@ def drawRoi(event, x, y,  flags, param):
         pts.append((x, y))  
 
     if event == cv2.EVENT_RBUTTONDOWN:  
-        pts.pop()  
+        if len(pts)>0:
+            pts.pop()  
     
+    imTemp, imMask = plotSegmentedRois(imTemp, imMask, rois, colors)
+
     if len(pts) > 0:
         cv2.circle(imTemp, pts[-1], 1, (0, 0, 255), -1)
 
     if len(pts) > 1:
 
-        points = np.array(pts, np.int32)
-        dist = np.linalg.norm(points[0] - points[-1])
-        if dist < 3:
-            points = points.reshape((-1, 1, 2))
-            imMask = cv2.fillPoly(imMask, [points], (0, 255, 0))
-            imTemp = cv2.addWeighted(imTemp, 0.5, imMask, 0.5, 0)
-
+        if checkRoiClosed(pts,distTh=5):
+            rois.append({'Id': id, 'Points': pts})
+            id += 1
+            print(rois, end='\n\n')
+            pts = []
+    
         for i in range(len(pts) - 1):
-            cv2.circle(imTemp, pts[i], 1, (0, 0, 255), -1)  # x ,y
+            cv2.circle(imTemp, pts[i], 1, (0, 0, 255), -1)
             cv2.line(imTemp, pt1=pts[i], pt2=pts[i + 1], color=(255, 0, 0), thickness=1)
+    
+    
     cv2.imshow('image', imTemp)
 
 def roiSelector(image):
-    global im, key, pts, rois
+    global im, key, pts, rois, id
 
+    id = 1
     pts = []
     rois = []
 
@@ -84,10 +106,12 @@ def roiSelector(image):
             break
 
         if chr(key).lower() == 'd':
+            if len(rois) < 1: continue
+            rois.pop()
             pts = []
+            id -= 1
             
         if chr(key).lower() == 's':
-            rois.append({'Id': 1, 'Points': pts})
             jsonName = image.split('.')[0] + '.json'
             with open(jsonName,'w') as jsonRoi:
                 json.dump(rois, jsonRoi)
