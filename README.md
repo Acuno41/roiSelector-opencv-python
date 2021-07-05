@@ -12,7 +12,7 @@ git clone https://github.com/Acuno41/roiSelector-opencv-python.git
 Use the [pip](https://pip.pypa.io/en/stable/) to install requirements.
 
 ```bash
-pip3 install requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ## Usage
